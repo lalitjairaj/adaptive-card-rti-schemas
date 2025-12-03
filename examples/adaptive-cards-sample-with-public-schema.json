@@ -1,0 +1,197 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "https://cdn.jsdelivr.net/gh/YOUR-GITHUB-USERNAME/ILLUM-architects-design-diagrams@v1.0.0/Projects/Cognigy%20Integration%20Assessments/Phase%201.5/Multi-Turn%20Multi-Form/schemas/adaptive-card-rti-v1.0.0.json",
+  "version": "1.5",
+
+  "body": [
+    {
+      "type": "Container",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "Loan Application Form",
+          "weight": "bolder",
+          "size": "extraLarge",
+          "color": "accent"
+        },
+        {
+          "type": "TextBlock",
+          "text": "This form will auto-fill as we talk. Please review and correct any information before submitting.",
+          "wrap": true,
+          "size": "small",
+          "color": "default",
+          "isSubtle": true
+        }
+      ],
+      "style": "emphasis"
+    },
+
+    {
+      "type": "Container",
+      "spacing": "medium",
+      "items": [
+        {
+          "type": "Input.Text",
+          "id": "customerName",
+          "label": "Full Name",
+          "placeholder": "This will fill automatically as we talk...",
+          "isRequired": true,
+          "errorMessage": "Please verify your full name"
+        },
+        {
+          "type": "Input.Number",
+          "id": "loanAmount",
+          "label": "Loan Amount ($)",
+          "placeholder": "Will be filled from conversation...",
+          "min": 1000,
+          "max": 500000,
+          "isRequired": true,
+          "errorMessage": "Please enter a loan amount between $1,000 and $500,000"
+        },
+        {
+          "type": "Input.ChoiceSet",
+          "id": "loanPurpose",
+          "label": "Purpose of Loan",
+          "style": "compact",
+          "isRequired": true,
+          "errorMessage": "Please select the purpose of the loan",
+          "choices": [
+            {"title": "Home Purchase", "value": "home purchase"},
+            {"title": "Home Improvement", "value": "home improvement"},
+            {"title": "Car Purchase", "value": "car purchase"},
+            {"title": "Debt Consolidation", "value": "debt consolidation"},
+            {"title": "Business", "value": "business"},
+            {"title": "Education", "value": "education"},
+            {"title": "Medical Expenses", "value": "medical expenses"},
+            {"title": "Other", "value": "other"}
+          ]
+        }
+      ]
+    },
+
+    {
+      "type": "Container",
+      "spacing": "small",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "ℹ️ This form is being filled automatically based on our conversation. Please review all information for accuracy before submitting.",
+          "wrap": true,
+          "size": "small",
+          "color": "accent",
+          "spacing": "small"
+        }
+      ]
+    }
+  ],
+
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Submit Application",
+      "style": "positive",
+      "data": {
+        "action": "submitLoanApplication",
+        "formId": "loan-application-v1",
+        "formVersion": "1.0",
+
+        "_rtiConfig": {
+          "updateMode": "realtime",
+          "updateTrigger": "onTranscriptUpdate",
+          "confidenceThreshold": 0.7,
+          "debounceMs": 2000,
+          "llmConfig": {
+            "model": "gpt-4",
+            "temperature": 0.1,
+            "maxTokens": 500
+          }
+        },
+
+        "_extractionSchema": {
+          "customerName": {
+            "fieldType": "Input.Text",
+            "question": "What is the customer's full name?",
+            "extractionPrompt": "Extract the customer's full name from the conversation. Look for phrases like 'my name is', 'I am', 'this is', or direct mentions of their name.",
+            "keywords": ["name", "my name is", "I am", "this is", "call me"],
+            "dataType": "text",
+            "required": true,
+            "validation": {
+              "minLength": 2,
+              "pattern": "^[a-zA-Z\\s'-]+$"
+            },
+            "confidenceRequired": 0.8,
+            "examples": [
+              "My name is John Smith",
+              "I'm Sarah Johnson",
+              "This is Michael Brown"
+            ]
+          },
+
+          "loanAmount": {
+            "fieldType": "Input.Number",
+            "question": "How much money does the customer want to borrow?",
+            "extractionPrompt": "Extract the total loan amount the customer wants to borrow. Look for dollar amounts, numbers followed by 'thousand' or 'k', and phrases like 'I need', 'borrow', 'loan for'. Convert to numeric USD value.",
+            "keywords": ["loan amount", "borrow", "need", "$", "dollars", "thousand", "k", "amount"],
+            "dataType": "currency",
+            "required": true,
+            "validation": {
+              "min": 1000,
+              "max": 500000
+            },
+            "confidenceRequired": 0.9,
+            "normalization": "convertToNumber",
+            "examples": [
+              "I need $50,000",
+              "looking to borrow 25 thousand dollars",
+              "a loan for $100k",
+              "need about fifty thousand"
+            ]
+          },
+
+          "loanPurpose": {
+            "fieldType": "Input.ChoiceSet",
+            "question": "What is the purpose or reason for the loan?",
+            "extractionPrompt": "Identify why the customer needs the loan. Map their explanation to one of these categories: home purchase, home improvement, car purchase, debt consolidation, business, education, medical expenses, or other.",
+            "keywords": ["purpose", "reason", "why", "for", "need it for", "use it for", "planning to", "want to"],
+            "dataType": "category",
+            "required": true,
+            "validation": {
+              "allowedValues": [
+                "home purchase",
+                "home improvement",
+                "car purchase",
+                "debt consolidation",
+                "business",
+                "education",
+                "medical expenses",
+                "other"
+              ]
+            },
+            "confidenceRequired": 0.75,
+            "mappingRules": {
+              "house|home|property|mortgage": "home purchase",
+              "renovate|remodel|fix|repair house|home improvement": "home improvement",
+              "car|vehicle|auto": "car purchase",
+              "consolidate|pay off|credit card|debt": "debt consolidation",
+              "business|startup|company": "business",
+              "school|college|education|tuition": "education",
+              "medical|health|hospital|surgery": "medical expenses"
+            },
+            "examples": [
+              "buying a house → home purchase",
+              "consolidate my credit cards → debt consolidation",
+              "start a business → business"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Save Draft",
+      "data": {
+        "action": "saveDraft"
+      }
+    }
+  ]
+}

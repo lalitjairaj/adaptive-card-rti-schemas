@@ -1,0 +1,237 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cdn.jsdelivr.net/gh/lalitjairaj/adaptive-card-rti-schemas@v1.0.0/schemas/adaptive-card-rti-v1.0.0.json",
+  "title": "Adaptive Card with RTI Extraction v1.0.0",
+  "description": "Extended Adaptive Cards schema for real-time LLM-based form extraction",
+  "version": "1.0.0",
+
+  "definitions": {
+    "rtiConfig": {
+      "type": "object",
+      "description": "RTI real-time extraction configuration",
+      "properties": {
+        "updateMode": {
+          "type": "string",
+          "enum": ["realtime", "batch", "manual"],
+          "description": "How the card should be updated"
+        },
+        "updateTrigger": {
+          "type": "string",
+          "enum": ["onTranscriptUpdate", "onInterval", "manual"],
+          "description": "When to trigger extraction"
+        },
+        "confidenceThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence to update fields (0-1)"
+        },
+        "debounceMs": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Milliseconds to wait after speech before extraction"
+        },
+        "llmConfig": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "LLM model to use for extraction (e.g., gpt-4, claude-3-sonnet)"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "description": "LLM temperature setting (0-2)"
+            },
+            "maxTokens": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Maximum tokens for LLM response"
+            }
+          },
+          "required": ["model"]
+        }
+      },
+      "required": ["updateMode", "updateTrigger"]
+    },
+
+    "fieldExtractionSchema": {
+      "type": "object",
+      "description": "Extraction schema for a single form field",
+      "properties": {
+        "fieldType": {
+          "type": "string",
+          "enum": ["Input.Text", "Input.Number", "Input.ChoiceSet", "Input.Toggle", "Input.Date"],
+          "description": "Type of input field this schema applies to"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Simple question to ask LLM about this field"
+        },
+        "extractionPrompt": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Detailed prompt for LLM extraction with context and instructions"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1,
+          "description": "Keywords to look for in conversation transcript"
+        },
+        "dataType": {
+          "type": "string",
+          "enum": ["text", "number", "currency", "email", "phone", "date", "category", "boolean"],
+          "description": "Expected data type of extracted value"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this field is required in the form"
+        },
+        "validation": {
+          "type": "object",
+          "description": "Validation rules for extracted values",
+          "properties": {
+            "min": {
+              "type": "number",
+              "description": "Minimum value (for numbers)"
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum value (for numbers)"
+            },
+            "minLength": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Minimum length (for strings)"
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum length (for strings)"
+            },
+            "pattern": {
+              "type": "string",
+              "description": "Regex pattern for validation"
+            },
+            "allowedValues": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "List of allowed values (for categories)"
+            }
+          }
+        },
+        "confidenceRequired": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum confidence for this field (overrides global threshold)"
+        },
+        "normalization": {
+          "type": "string",
+          "enum": ["convertToNumber", "convertToAnnual", "convertMonthsToYears", "uppercase", "lowercase"],
+          "description": "How to normalize extracted values before setting field"
+        },
+        "examples": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Example extractions to guide LLM understanding"
+        },
+        "mappingRules": {
+          "type": "object",
+          "description": "Regex patterns mapped to specific values (for category extraction)",
+          "additionalProperties": {"type": "string"}
+        },
+        "conditionalExtraction": {
+          "type": "object",
+          "description": "Extract only if condition on another field is met",
+          "properties": {
+            "dependsOn": {
+              "type": "string",
+              "description": "Field ID this extraction depends on"
+            },
+            "condition": {
+              "type": "string",
+              "enum": ["equals", "notEquals", "contains", "greaterThan", "lessThan"],
+              "description": "Condition type"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value to compare against"
+            }
+          },
+          "required": ["dependsOn", "condition", "value"]
+        }
+      },
+      "required": ["fieldType", "question", "extractionPrompt", "keywords", "dataType"]
+    },
+
+    "extractionSchema": {
+      "type": "object",
+      "description": "Complete extraction schema mapping field IDs to extraction configs",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/fieldExtractionSchema"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "type": "object",
+  "description": "Adaptive Card with embedded RTI extraction schema",
+  "properties": {
+    "type": {
+      "const": "AdaptiveCard"
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "body": {
+      "type": "array",
+      "description": "Card body elements"
+    },
+    "actions": {
+      "type": "array",
+      "description": "Card actions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "description": "Backend action identifier (e.g., submitLoanApplication)"
+              },
+              "formId": {
+                "type": "string",
+                "description": "Unique form identifier"
+              },
+              "formVersion": {
+                "type": "string",
+                "description": "Form schema version"
+              },
+              "_rtiConfig": {
+                "$ref": "#/definitions/rtiConfig"
+              },
+              "_extractionSchema": {
+                "$ref": "#/definitions/extractionSchema"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["type", "version", "body"]
+}
